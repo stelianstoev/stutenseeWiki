@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { compressImage } from '../../lib/compressImage'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
@@ -41,17 +42,15 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
     const file = e.target.files?.[0]
     if (!file || !neighbor) return
 
-    const ext = file.name.includes('.')
-      ? file.name.split('.').pop()
-      : (file.type.split('/')[1] || 'jpg')
-    const filePath = `${neighbor.id}/${Date.now()}.${ext}`
+    const blob = await compressImage(file)
+    const filePath = `${neighbor.id}/${Date.now()}.jpg`
 
     const { error: uploadError } = await supabase.storage
       .from('article-photos')
-      .upload(filePath, file, {
+      .upload(filePath, blob, {
         cacheControl: '3600',
         upsert: false,
-        contentType: file.type || undefined,
+        contentType: 'image/jpeg',
       })
 
     if (uploadError) {

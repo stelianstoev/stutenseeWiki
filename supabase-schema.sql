@@ -55,7 +55,15 @@ CREATE TABLE article_categories (
 CREATE INDEX idx_article_categories_category ON article_categories(category_id);
 
 -- 6. Storage bucket for photos
--- Run: supabase storage create article-photos
+-- Run in Supabase dashboard: Storage → New bucket → name: article-photos, public
+-- Then enable public access:
+CREATE POLICY "public_read_photos"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'article-photos');
+
+CREATE POLICY "public_insert_photos"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'article-photos');
 
 -- 7. Version trigger: snapshots on article update
 CREATE OR REPLACE FUNCTION save_article_version()

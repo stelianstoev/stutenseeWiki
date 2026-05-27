@@ -29,3 +29,12 @@ DROP POLICY IF EXISTS "read_all" ON article_categories;
 DROP POLICY IF EXISTS "insert_own" ON article_categories;
 DROP POLICY IF EXISTS "read_photos" ON storage.objects;
 DROP POLICY IF EXISTS "insert_photos" ON storage.objects;
+
+-- 5. Allow public access to article-photos bucket (no auth)
+CREATE POLICY "public_read_photos"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'article-photos');
+
+CREATE POLICY "public_insert_photos"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'article-photos');
