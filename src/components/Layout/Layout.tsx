@@ -12,6 +12,7 @@ export function Layout({ children }: LayoutProps) {
   const { neighbor, signOut } = useAuth()
   const { categories, loading, refresh } = useCategories()
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   async function handleDelete(id: string) {
     await supabase.from('categories').delete().eq('id', id)
@@ -29,6 +30,11 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="app-layout">
       <header className="app-header">
+        <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+          <span />
+          <span />
+          <span />
+        </button>
         <a href="/" className="logo">Stutensee Wiki</a>
         <div className="header-right">
           {neighbor && (
@@ -38,8 +44,10 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      <aside className="sidebar">
-        <nav>
+      {menuOpen && <div className="overlay" onClick={() => setMenuOpen(false)} />}
+
+      <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
+        <nav onClick={(e) => { const target = (e.target as HTMLElement).closest('a'); if (target) setMenuOpen(false) }}>
           <a href="/" className="nav-link">All articles</a>
           <div className="sidebar-section">
             <h3>Categories</h3>
@@ -56,12 +64,14 @@ export function Layout({ children }: LayoutProps) {
             )}
           </div>
         </nav>
-        <a href="/new" className="btn-primary">+ New article</a>
+        <a href="/new" className="btn-primary" onClick={() => setMenuOpen(false)}>+ New article</a>
       </aside>
 
       <main className="main-content">
         {children}
       </main>
+
+      <a href="/new" className="fab" onClick={() => setMenuOpen(false)}>+</a>
     </div>
   )
 }
