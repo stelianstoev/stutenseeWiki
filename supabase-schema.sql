@@ -54,20 +54,34 @@ CREATE TABLE article_categories (
 
 CREATE INDEX idx_article_categories_category ON article_categories(category_id);
 
--- 6. Storage bucket for photos
+-- 6. Article-Image junction (dedup + cleanup tracking)
+CREATE TABLE article_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_article_images_article ON article_images(article_id);
+CREATE INDEX idx_article_images_hash ON article_images(hash);
+
+-- 7. Storage bucket for photos
 -- Run in Supabase dashboard: Storage → New bucket → name: article-photos, public
 -- Then run:
 UPDATE storage.buckets SET public = true WHERE name = 'article-photos';
 
+DROP POLICY IF EXISTS "public_read_photos" ON storage.objects;
 CREATE POLICY "public_read_photos"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'article-photos');
 
+DROP POLICY IF EXISTS "public_insert_photos" ON storage.objects;
 CREATE POLICY "public_insert_photos"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'article-photos');
 
--- 7. Version trigger: snapshots on article update
+-- 8. Version trigger: snapshots on article update
 CREATE OR REPLACE FUNCTION save_article_version()
 RETURNS trigger AS $$
 BEGIN

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { compressImage } from '../../lib/compressImage'
+import { hashBlob, extractImagePaths } from '../../lib/imageUtils'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
@@ -43,24 +44,25 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
     if (!file || !neighbor) return
 
     const blob = await compressImage(file)
-    const filePath = `${neighbor.id}/${Date.now()}.jpg`
+    const hash = await hashBlob(blob)
+    const storagePath = `images/${hash}.jpg`
 
     const { error: uploadError } = await supabase.storage
       .from('article-photos')
-      .upload(filePath, blob, {
+      .upload(storagePath, blob, {
         cacheControl: '3600',
         upsert: false,
         contentType: 'image/jpeg',
       })
 
-    if (uploadError) {
+    if (uploadError && !uploadError.message.includes('already exists')) {
       setError(uploadError.message)
       return
     }
 
     const { data: { publicUrl } } = supabase.storage
       .from('article-photos')
-      .getPublicUrl(filePath)
+      .getPublicUrl(storagePath)
 
     const testImg = new window.Image()
     testImg.onload = () => editor?.chain().focus().setImage({ src: publicUrl }).run()
@@ -132,6 +134,39 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
           category_id: categoryId,
         }))
         await supabase.from('article_categories').insert(rows)
+      }
+
+      const imagePaths = extractImagePaths(content)
+      if (imagePaths.length > 0) {
+        const oldImages = await supabase
+          .from('article_images')
+          .select('storage_path, hash')
+          .eq('article_id', articleId)
+
+        const oldPaths = new Set((oldImages.data ?? []).map((i) => i.storage_path))
+        const newPathsSet = new Set(imagePaths)
+
+        await supabase.from('article_images').delete().eq('article_id', articleId)
+
+        const rows = imagePaths.map((storagePath) => ({
+          article_id: articleId!,
+          storage_path: storagePath,
+          hash: storagePath.replace(/^images\//, '').replace(/\.jpg$/, ''),
+        }))
+        await supabase.from('article_images').insert(rows)
+
+        for (const path of oldPaths) {
+          if (!newPathsSet.has(path)) {
+            const { data: refs } = await supabase
+              .from('article_images')
+              .select('id')
+              .eq('storage_path', path)
+              .limit(1)
+            if (!refs || refs.length === 0) {
+              await supabase.storage.from('article-photos').remove([path])
+            }
+          }
+        }
       }
     }
 

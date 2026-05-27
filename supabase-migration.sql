@@ -30,14 +30,30 @@ DROP POLICY IF EXISTS "insert_own" ON article_categories;
 DROP POLICY IF EXISTS "read_photos" ON storage.objects;
 DROP POLICY IF EXISTS "insert_photos" ON storage.objects;
 
--- 5. Make the article-photos bucket public (so getPublicUrl works)
+-- 5. Article-Image tracking table
+CREATE TABLE IF NOT EXISTS article_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_images_article ON article_images(article_id);
+CREATE INDEX IF NOT EXISTS idx_article_images_hash ON article_images(hash);
+
+ALTER TABLE article_images DISABLE ROW LEVEL SECURITY;
+
+-- 6. Make the article-photos bucket public (so getPublicUrl works)
 UPDATE storage.buckets SET public = true WHERE name = 'article-photos';
 
--- 6. Allow public access to article-photos bucket (no auth)
+-- 7. Allow public access to article-photos bucket (no auth)
+DROP POLICY IF EXISTS "public_read_photos" ON storage.objects;
 CREATE POLICY "public_read_photos"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'article-photos');
 
+DROP POLICY IF EXISTS "public_insert_photos" ON storage.objects;
 CREATE POLICY "public_insert_photos"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'article-photos');
