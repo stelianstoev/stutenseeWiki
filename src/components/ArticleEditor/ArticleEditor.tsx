@@ -41,15 +41,21 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
     const file = e.target.files?.[0]
     if (!file || !neighbor) return
 
-    const ext = file.name.split('.').pop()
+    const ext = file.name.includes('.')
+      ? file.name.split('.').pop()
+      : (file.type.split('/')[1] || 'jpg')
     const filePath = `${neighbor.id}/${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('article-photos')
-      .upload(filePath, file)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || undefined,
+      })
 
     if (uploadError) {
-      setError('Failed to upload image')
+      setError(uploadError.message)
       return
     }
 
@@ -58,6 +64,8 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
       .getPublicUrl(filePath)
 
     editor?.chain().focus().setImage({ src: publicUrl }).run()
+
+    e.target.value = ''
   }, [editor, neighbor])
 
   function toggleCategory(id: string) {
@@ -178,7 +186,6 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           style={{ display: 'none' }}
           onChange={handleImageUpload}
         />
