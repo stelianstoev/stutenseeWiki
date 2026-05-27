@@ -31,7 +31,7 @@ function ArticleViewInner({
   async function handleDelete() {
     if (!window.confirm(`Delete "${article.title}"? This cannot be undone.`)) return
     setDeleting(true)
-    await deleteUnusedImages(article.id)
+    await deleteUnusedImages(article.id, article.content)
     await supabase.from('articles').delete().eq('id', article.id)
     navigate('/')
   }

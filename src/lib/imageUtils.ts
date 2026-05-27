@@ -21,24 +21,34 @@ export function extractImagePaths(html: string): string[] {
   return [...new Set(paths)]
 }
 
-export async function deleteUnusedImages(articleId: string) {
+export async function deleteUnusedImages(articleId: string, content: string) {
+  const pathsInContent = extractImagePaths(content)
+  const trackedPaths = new Set<string>()
+
   const { data: images } = await supabase
     .from('article_images')
     .select('storage_path, hash')
     .eq('article_id', articleId)
 
-  if (!images || images.length === 0) return
+  if (images) {
+    for (const img of images) {
+      const { data: refs } = await supabase
+        .from('article_images')
+        .select('id')
+        .eq('hash', img.hash)
+        .neq('article_id', articleId)
+        .limit(1)
 
-  for (const img of images) {
-    const { data: refs } = await supabase
-      .from('article_images')
-      .select('id')
-      .eq('hash', img.hash)
-      .neq('article_id', articleId)
-      .limit(1)
+      if (!refs || refs.length === 0) {
+        await supabase.storage.from('article-photos').remove([img.storage_path])
+      }
+      trackedPaths.add(img.storage_path)
+    }
+  }
 
-    if (!refs || refs.length === 0) {
-      await supabase.storage.from('article-photos').remove([img.storage_path])
+  for (const path of pathsInContent) {
+    if (!trackedPaths.has(path)) {
+      await supabase.storage.from('article-photos').remove([path])
     }
   }
 }
