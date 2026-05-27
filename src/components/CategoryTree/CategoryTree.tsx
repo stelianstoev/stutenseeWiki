@@ -10,7 +10,7 @@ interface CategoryTreeProps {
 }
 
 export function CategoryTree({ selectedIds, onToggle }: CategoryTreeProps) {
-  const { categories, loading } = useCategories()
+  const { categories, loading, refresh } = useCategories()
   const { neighbor } = useAuth()
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState('')
@@ -37,6 +37,7 @@ export function CategoryTree({ selectedIds, onToggle }: CategoryTreeProps) {
       setNewName('')
       setShowNewForm(false)
       setError('')
+      refresh()
     }
   }
 

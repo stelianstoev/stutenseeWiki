@@ -2,13 +2,42 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Article, Category } from '../types'
 
-export function useArticles(searchQuery?: string, authorId?: string) {
+export function useArticles(searchQuery?: string, authorId?: string, categorySlug?: string) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchArticles() {
       setLoading(true)
+
+      let articleIds: string[] | undefined
+
+      if (categorySlug) {
+        const { data: cat } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('slug', categorySlug)
+          .single()
+
+        if (cat) {
+          const { data: links } = await supabase
+            .from('article_categories')
+            .select('article_id')
+            .eq('category_id', cat.id)
+
+          if (links && links.length > 0) {
+            articleIds = links.map((l: { article_id: string }) => l.article_id)
+          } else {
+            setArticles([])
+            setLoading(false)
+            return
+          }
+        } else {
+          setArticles([])
+          setLoading(false)
+          return
+        }
+      }
 
       let query = supabase
         .from('articles')
@@ -21,6 +50,10 @@ export function useArticles(searchQuery?: string, authorId?: string) {
 
       if (authorId) {
         query = query.eq('created_by', authorId)
+      }
+
+      if (articleIds) {
+        query = query.in('id', articleIds)
       }
 
       const { data: articleData } = await query
@@ -69,7 +102,7 @@ export function useArticles(searchQuery?: string, authorId?: string) {
     }
 
     fetchArticles()
-  }, [searchQuery, authorId])
+  }, [searchQuery, authorId, categorySlug])
 
   return { articles, loading }
 }

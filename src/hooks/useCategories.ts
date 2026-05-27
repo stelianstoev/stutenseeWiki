@@ -1,23 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Category } from '../types'
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [version, setVersion] = useState(0)
 
   useEffect(() => {
-    supabase
-      .from('categories')
-      .select('*')
-      .order('name')
-      .then(({ data }) => {
-        if (data) setCategories(buildTree(data))
-        setLoading(false)
-      })
-  }, [])
+    async function fetch() {
+      setLoading(true)
+      const { data } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name')
+      if (data) setCategories(buildTree(data))
+      setLoading(false)
+    }
+    fetch()
+  }, [version])
 
-  return { categories, loading }
+  const refresh = useCallback(() => setVersion((v) => v + 1), [])
+
+  return { categories, loading, refresh }
 }
 
 function buildTree(items: Category[]): Category[] {

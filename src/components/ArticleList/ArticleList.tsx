@@ -7,9 +7,12 @@ export function ArticleList() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [authorFilter, setAuthorFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState(
+    () => new URLSearchParams(window.location.search).get('category') || ''
+  )
   const [neighbors, setNeighbors] = useState<Neighbor[]>([])
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const { articles, loading } = useArticles(debouncedSearch, authorFilter)
+  const { articles, loading } = useArticles(debouncedSearch, authorFilter, categoryFilter)
 
   useEffect(() => {
     supabase
@@ -19,6 +22,15 @@ export function ArticleList() {
       .then(({ data }) => {
         if (data) setNeighbors(data as Neighbor[])
       })
+  }, [])
+
+  useEffect(() => {
+    function onPopState() {
+      const cat = new URLSearchParams(window.location.search).get('category') || ''
+      setCategoryFilter(cat)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
   function handleSearch(value: string) {
@@ -49,6 +61,14 @@ export function ArticleList() {
           ))}
         </select>
       </div>
+
+      {categoryFilter && (
+        <p className="active-filter">
+          Category: <strong>{categoryFilter}</strong>
+          {' '}
+          <a href="/" className="clear-filter">✕ clear</a>
+        </p>
+      )}
 
       {loading ? (
         <p className="loading">Loading...</p>
