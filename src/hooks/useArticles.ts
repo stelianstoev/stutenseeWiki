@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Article, Category } from '../types'
 
-export function useArticles(searchQuery?: string) {
+export function useArticles(searchQuery?: string, authorId?: string) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -17,6 +17,10 @@ export function useArticles(searchQuery?: string) {
 
       if (searchQuery) {
         query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
+      }
+
+      if (authorId) {
+        query = query.eq('created_by', authorId)
       }
 
       const { data: articleData } = await query
@@ -65,7 +69,7 @@ export function useArticles(searchQuery?: string) {
     }
 
     fetchArticles()
-  }, [searchQuery])
+  }, [searchQuery, authorId])
 
   return { articles, loading }
 }

@@ -243,9 +243,15 @@ input, textarea, select, button {
   font-size: .8125rem;
 }
 
-/* Search bar */
-.search-bar {
+/* List toolbar */
+.list-toolbar {
+  display: flex;
+  gap: .75rem;
   margin-bottom: 1.5rem;
+}
+
+.search-bar {
+  flex: 1;
 }
 
 .search-bar input {
@@ -255,6 +261,15 @@ input, textarea, select, button {
   border-radius: var(--radius);
   font-size: 1rem;
   background: white;
+}
+
+.filter-select {
+  padding: .75rem 1rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius);
+  font-size: .875rem;
+  background: white;
+  min-width: 10rem;
 }
 
 /* Article list */

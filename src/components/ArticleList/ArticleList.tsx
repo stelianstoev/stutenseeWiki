@@ -1,27 +1,53 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../../lib/supabase'
 import { useArticles } from '../../hooks/useArticles'
+import type { Neighbor } from '../../types'
 
 export function ArticleList() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const { articles, loading } = useArticles(debouncedSearch)
+  const [authorFilter, setAuthorFilter] = useState('')
+  const [neighbors, setNeighbors] = useState<Neighbor[]>([])
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const { articles, loading } = useArticles(debouncedSearch, authorFilter)
 
-  const handleSearch = useCallback((value: string) => {
-    setSearch(value)
-    const timer = setTimeout(() => setDebouncedSearch(value), 300)
-    return () => clearTimeout(timer)
+  useEffect(() => {
+    supabase
+      .from('neighbors')
+      .select('id, display_name')
+      .order('display_name')
+      .then(({ data }) => {
+        if (data) setNeighbors(data as Neighbor[])
+      })
   }, [])
+
+  function handleSearch(value: string) {
+    setSearch(value)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setDebouncedSearch(value), 400)
+  }
 
   return (
     <div className="article-list">
-      <div className="search-bar">
-        <input
-          type="search"
-          placeholder="Search articles..."
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          autoFocus
-        />
+      <div className="list-toolbar">
+        <div className="search-bar">
+          <input
+            type="search"
+            placeholder="Search articles..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="filter-select"
+          value={authorFilter}
+          onChange={(e) => setAuthorFilter(e.target.value)}
+        >
+          <option value="">All authors</option>
+          {neighbors.map((n) => (
+            <option key={n.id} value={n.id}>{n.display_name}</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (

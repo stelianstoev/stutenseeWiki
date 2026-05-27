@@ -5,6 +5,7 @@ import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { CategoryTree } from '../CategoryTree/CategoryTree'
 import type { Article } from '../../types'
 
 interface ArticleEditorProps {
@@ -17,6 +18,9 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
   const [title, setTitle] = useState(article?.title ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
+    () => article?.categories?.map((ac) => ac.category.id) ?? []
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const editor = useEditor({
@@ -56,6 +60,12 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
     editor?.chain().focus().setImage({ src: publicUrl }).run()
   }, [editor, neighbor])
 
+  function toggleCategory(id: string) {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    )
+  }
+
   async function handleSave() {
     if (!title.trim()) {
       setError('Title is required')
@@ -72,6 +82,8 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
 
+    let articleId: string | undefined = article?.id
+
     if (article) {
       const { error: updateError } = await supabase
         .from('articles')
@@ -80,22 +92,41 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
 
       if (updateError) {
         setError(updateError.message)
-      } else {
-        onSaved()
+        setSaving(false)
+        return
       }
     } else {
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from('articles')
         .insert({ title, slug, content, created_by: neighbor!.id })
+        .select('id')
+        .single()
 
       if (insertError) {
         setError(insertError.message)
-      } else {
-        onSaved()
+        setSaving(false)
+        return
+      }
+      articleId = data.id
+    }
+
+    if (articleId) {
+      await supabase
+        .from('article_categories')
+        .delete()
+        .eq('article_id', articleId)
+
+      if (selectedCategoryIds.length > 0) {
+        const rows = selectedCategoryIds.map((categoryId) => ({
+          article_id: articleId!,
+          category_id: categoryId,
+        }))
+        await supabase.from('article_categories').insert(rows)
       }
     }
 
     setSaving(false)
+    onSaved()
   }
 
   return (
@@ -154,6 +185,11 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
       </div>
 
       <EditorContent editor={editor} />
+
+      <CategoryTree
+        selectedIds={selectedCategoryIds}
+        onToggle={toggleCategory}
+      />
 
       {error && <p className="error">{error}</p>}
 
