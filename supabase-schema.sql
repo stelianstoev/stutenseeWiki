@@ -56,7 +56,9 @@ CREATE INDEX idx_article_categories_category ON article_categories(category_id);
 
 -- 6. Storage bucket for photos
 -- Run in Supabase dashboard: Storage → New bucket → name: article-photos, public
--- Then enable public access:
+-- Then run:
+UPDATE storage.buckets SET public = true WHERE name = 'article-photos';
+
 CREATE POLICY "public_read_photos"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'article-photos');

@@ -30,7 +30,10 @@ DROP POLICY IF EXISTS "insert_own" ON article_categories;
 DROP POLICY IF EXISTS "read_photos" ON storage.objects;
 DROP POLICY IF EXISTS "insert_photos" ON storage.objects;
 
--- 5. Allow public access to article-photos bucket (no auth)
+-- 5. Make the article-photos bucket public (so getPublicUrl works)
+UPDATE storage.buckets SET public = true WHERE name = 'article-photos';
+
+-- 6. Allow public access to article-photos bucket (no auth)
 CREATE POLICY "public_read_photos"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'article-photos');

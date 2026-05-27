@@ -62,7 +62,10 @@ export function ArticleEditor({ article, onSaved }: ArticleEditorProps) {
       .from('article-photos')
       .getPublicUrl(filePath)
 
-    editor?.chain().focus().setImage({ src: publicUrl }).run()
+    const testImg = new window.Image()
+    testImg.onload = () => editor?.chain().focus().setImage({ src: publicUrl }).run()
+    testImg.onerror = () => setError('Upload OK but image URL not accessible — make the bucket public in Supabase dashboard')
+    testImg.src = publicUrl
 
     e.target.value = ''
   }, [editor, neighbor])
