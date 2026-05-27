@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom'
+import { supabase } from './lib/supabase'
+import type { Article } from './types'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import { InviteGate } from './components/InviteGate/InviteGate'
@@ -11,13 +13,12 @@ import { VersionHistory } from './components/VersionHistory/VersionHistory'
 import './styles/index.css'
 
 function AppShell() {
-  const { user, loading } = useAuth()
-  const [inviteVerified, setInviteVerified] = useState(false)
+  const { neighbor, loading } = useAuth()
 
   if (loading) return <p className="loading">Loading...</p>
 
-  if (!user && !inviteVerified) {
-    return <InviteGate onVerified={() => setInviteVerified(true)} />
+  if (!neighbor) {
+    return <InviteGate />
   }
 
   return (
@@ -50,9 +51,28 @@ function NewArticlePage() {
 }
 
 function EditArticlePage() {
+  const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { slug } = { slug: window.location.pathname.split('/')[2] }
-  return <ArticleEditor onSaved={() => navigate(`/article/${slug}`)} />
+  const [article, setArticle] = useState<Article | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!slug) return
+    supabase
+      .from('articles')
+      .select('*')
+      .eq('slug', slug)
+      .single()
+      .then(({ data }) => {
+        setArticle(data as unknown as Article)
+        setLoading(false)
+      })
+  }, [slug])
+
+  if (loading) return <p className="loading">Loading...</p>
+  if (!article) return <p className="error">Article not found.</p>
+
+  return <ArticleEditor article={article} onSaved={() => navigate(`/article/${slug}`)} />
 }
 
 export default function App() {

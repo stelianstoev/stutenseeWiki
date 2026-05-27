@@ -1,35 +1,66 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Article } from '../types'
+import type { Article, Category } from '../types'
 
 export function useArticles(searchQuery?: string) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchArticles = async () => {
+    async function fetchArticles() {
       setLoading(true)
 
       let query = supabase
         .from('articles')
-        .select(`
-          *,
-          author:neighbors!articles_created_by_fkey(display_name),
-          categories:article_categories(
-            category:categories(*)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (searchQuery) {
         query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)
       }
 
-      const { data } = await query
+      const { data: articleData } = await query
 
-      if (data) {
-        setArticles(data as unknown as Article[])
+      if (!articleData) {
+        setLoading(false)
+        return
       }
+
+      const articlesWithDetails = await Promise.all(
+        articleData.map(async (article) => {
+          const { data: author } = await supabase
+            .from('neighbors')
+            .select('display_name')
+            .eq('id', article.created_by)
+            .single()
+
+          const { data: catLinks } = await supabase
+            .from('article_categories')
+            .select('category_id')
+            .eq('article_id', article.id)
+
+          let categories: { category: Category }[] = []
+          if (catLinks && catLinks.length > 0) {
+            const ids = catLinks.map((c: { category_id: string }) => c.category_id)
+            const { data: cats } = await supabase
+              .from('categories')
+              .select('*')
+              .in('id', ids)
+
+            if (cats) {
+              categories = cats.map((c) => ({ category: c }))
+            }
+          }
+
+          return {
+            ...article,
+            author: author ?? undefined,
+            categories,
+          } as unknown as Article
+        })
+      )
+
+      setArticles(articlesWithDetails)
       setLoading(false)
     }
 
@@ -44,21 +75,51 @@ export function useArticle(slug: string) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('articles')
-      .select(`
-        *,
-        author:neighbors!articles_created_by_fkey(display_name),
-        categories:article_categories(
-          category:categories(*)
-        )
-      `)
-      .eq('slug', slug)
-      .single()
-      .then(({ data }) => {
-        setArticle(data as unknown as Article)
+    async function fetchArticle() {
+      const { data: articleData } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('slug', slug)
+        .single()
+
+      if (!articleData) {
         setLoading(false)
-      })
+        return
+      }
+
+      const { data: author } = await supabase
+        .from('neighbors')
+        .select('display_name')
+        .eq('id', articleData.created_by)
+        .single()
+
+      const { data: catLinks } = await supabase
+        .from('article_categories')
+        .select('category_id')
+        .eq('article_id', articleData.id)
+
+      let categories: { category: Category }[] = []
+      if (catLinks && catLinks.length > 0) {
+        const ids = catLinks.map((c: { category_id: string }) => c.category_id)
+        const { data: cats } = await supabase
+          .from('categories')
+          .select('*')
+          .in('id', ids)
+
+        if (cats) {
+          categories = cats.map((c) => ({ category: c }))
+        }
+      }
+
+      setArticle({
+        ...articleData,
+        author: author ?? undefined,
+        categories,
+      } as unknown as Article)
+      setLoading(false)
+    }
+
+    fetchArticle()
   }, [slug])
 
   return { article, loading }

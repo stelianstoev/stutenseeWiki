@@ -1,8 +1,8 @@
 -- Stutensee Wiki: Supabase Schema
 
--- 1. Profiles (extends auth.users)
+-- 1. Neighbors (no Supabase Auth dependency)
 CREATE TABLE neighbors (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   display_name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -54,41 +54,10 @@ CREATE TABLE article_categories (
 
 CREATE INDEX idx_article_categories_category ON article_categories(category_id);
 
--- Storage bucket for photos
+-- 6. Storage bucket for photos
 -- Run: supabase storage create article-photos
 
--- Enable RLS
-ALTER TABLE neighbors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE article_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE article_categories ENABLE ROW LEVEL SECURITY;
-
--- RLS: authenticated users can read everything
-CREATE POLICY "read_all" ON neighbors FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "read_all" ON articles FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "read_all" ON article_versions FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "read_all" ON categories FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "read_all" ON article_categories FOR SELECT USING (auth.role() = 'authenticated');
-
--- RLS: authenticated users can insert/update their own
-CREATE POLICY "insert_own" ON neighbors FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "insert_own" ON articles FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "insert_own" ON article_versions FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "insert_own" ON categories FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "insert_own" ON article_categories FOR INSERT WITH CHECK (auth.uid() IN (
-  SELECT created_by FROM articles WHERE id = article_id
-));
-
-CREATE POLICY "update_own" ON articles FOR UPDATE USING (auth.uid() = created_by);
-
--- Storage bucket RLS
-CREATE POLICY "read_photos" ON storage.objects FOR SELECT USING (bucket_id = 'article-photos');
-CREATE POLICY "insert_photos" ON storage.objects FOR INSERT WITH CHECK (
-  bucket_id = 'article-photos' AND auth.role() = 'authenticated'
-);
-
--- Version trigger: snapshots on article update
+-- 7. Version trigger: snapshots on article update
 CREATE OR REPLACE FUNCTION save_article_version()
 RETURNS trigger AS $$
 BEGIN
