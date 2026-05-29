@@ -11,8 +11,8 @@ export default defineConfig({
         name: 'Stutensee Wiki',
         short_name: 'Wiki',
         description: 'Knowledge base for our Reihenhaus',
-        theme_color: '#166534',
-        background_color: '#f0fdf4',
+        theme_color: '#065f46',
+        background_color: '#f8fafc',
         display: 'standalone',
         orientation: 'portrait-primary',
         icons: [

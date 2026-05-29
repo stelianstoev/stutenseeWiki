@@ -57,3 +57,8 @@ DROP POLICY IF EXISTS "public_insert_photos" ON storage.objects;
 CREATE POLICY "public_insert_photos"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'article-photos');
+
+DROP POLICY IF EXISTS "public_delete_photos" ON storage.objects;
+CREATE POLICY "public_delete_photos"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'article-photos');

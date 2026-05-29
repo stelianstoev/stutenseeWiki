@@ -21,9 +21,15 @@ export function extractImagePaths(html: string): string[] {
   return [...new Set(paths)]
 }
 
+async function removeFromStorage(path: string) {
+  const { error } = await supabase.storage.from('article-photos').remove([path])
+  if (error) console.error('Failed to delete image from storage:', path, error.message)
+}
+
 export async function deleteUnusedImages(articleId: string, content: string) {
   const pathsInContent = extractImagePaths(content)
   const trackedPaths = new Set<string>()
+  const deletedHashes = new Set<string>()
 
   const { data: images } = await supabase
     .from('article_images')
@@ -32,6 +38,7 @@ export async function deleteUnusedImages(articleId: string, content: string) {
 
   if (images) {
     for (const img of images) {
+      if (deletedHashes.has(img.hash)) continue
       const { data: refs } = await supabase
         .from('article_images')
         .select('id')
@@ -40,7 +47,8 @@ export async function deleteUnusedImages(articleId: string, content: string) {
         .limit(1)
 
       if (!refs || refs.length === 0) {
-        await supabase.storage.from('article-photos').remove([img.storage_path])
+        await removeFromStorage(img.storage_path)
+        deletedHashes.add(img.hash)
       }
       trackedPaths.add(img.storage_path)
     }
@@ -48,7 +56,7 @@ export async function deleteUnusedImages(articleId: string, content: string) {
 
   for (const path of pathsInContent) {
     if (!trackedPaths.has(path)) {
-      await supabase.storage.from('article-photos').remove([path])
+      await removeFromStorage(path)
     }
   }
 }

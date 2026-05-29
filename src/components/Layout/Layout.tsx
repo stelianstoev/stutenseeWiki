@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useCategories } from '../../hooks/useCategories'
 import { supabase } from '../../lib/supabase'
@@ -11,6 +12,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { neighbor, signOut } = useAuth()
   const { categories, loading, refresh } = useCategories()
+  const location = useLocation()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -71,7 +73,9 @@ export function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      <a href="/new" className="fab" onClick={() => setMenuOpen(false)}>+</a>
+      {location.pathname !== '/new' && (
+        <a href="/new" className="fab" onClick={() => setMenuOpen(false)}>+</a>
+      )}
     </div>
   )
 }
